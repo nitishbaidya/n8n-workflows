@@ -1,0 +1,513 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -16,
+        -64
+      ],
+      "id": "51542631-70cf-4ff8-8205-9c4f09b6876d",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.open-meteo.com/v1/forecast?latitude=51.5085&longitude=-0.1257&daily=temperature_2m_max,temperature_2m_min,rain_sum,showers_sum,snowfall_sum,wind_speed_10m_max,wind_gusts_10m_max,precipitation_hours,precipitation_probability_max,precipitation_sum&timezone=Europe%2FLondon&forecast_days=1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        112
+      ],
+      "id": "d7a83c18-562c-4c07-adba-72d1afaf8940",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/feelgood.rss",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        -144
+      ],
+      "id": "05a5a8d9-d936-4a1a-a26e-f303974e463d",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4caf197c-e12d-4d8b-92b5-070e15be3bce",
+              "name": "title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        736,
+        -208
+      ],
+      "id": "ff7523c8-92fc-43aa-ab6c-499b4e8f2c86",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=In one word, describe the overall mood of these headlines: {{ $json.title }}\nDo not provide the mood for each headline. Just one overall mood for all",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        -208
+      ],
+      "id": "4176907a-0ee9-4df0-baed-24d08833cea6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        -32
+      ],
+      "id": "52240f23-0f93-4822-b681-962d3b3a92dc",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DjXD79fBxBjlrrm8",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/upliftingnews.rss",
+        "options": {
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        -272
+      ],
+      "id": "c97d82f8-b384-4687-bd22-4dbf51798ea4",
+      "name": "RSS Read1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        368,
+        -208
+      ],
+      "id": "684d4656-fe4e-4722-9c86-28c9c9a88485",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "17b8e497-de0c-4e8b-b2ac-15e44d7ee7e8",
+              "leftValue": "title",
+              "rightValue": "Daily",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        -208
+      ],
+      "id": "7b417979-7cea-4b18-9315-24d03b4af4e7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "title"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        864,
+        -208
+      ],
+      "id": "8dac8a80-0501-41e9-a831-3cb04a2ce732",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=In one word. describe the mood of this weather:\nMax Temp:{{ $json.daily.temperature_2m_max[0] }}{{ $json.daily_units.temperature_2m_max }} Min Temp:{{ $json.daily.temperature_2m_min[0] }}{{ $json.daily_units.temperature_2m_min }} Rain: {{ $json.daily.rain_sum[0] }}{{ $json.daily_units.rain_sum }} Showers:{{ $json.daily.showers_sum[0] }}{{ $json.daily_units.showers_sum }} Snowfall:{{ $json.daily.snowfall_sum[0] }}{{ $json.daily_units.snowfall_sum }} Max Wind Speed:{{ $json.daily.wind_speed_10m_max[0] }}{{ $json.daily_units.wind_speed_10m_max  }} Max Wind Gusts:{{ $json.daily.wind_gusts_10m_max[0] }}{{ $json.daily_units.wind_gusts_10m_max }} Precipitation Hours:{{ $json.daily.precipitation_hours[0] }}{{ $json.daily_units.precipitation_hours }} Precipitation Probability:{{ $json.daily.precipitation_probability_max[0] }}{{ $json.daily_units.precipitation_probability_max }} Precipitation Sum:{{ $json.daily.precipitation_sum[0] }}{{ $json.daily_units.precipitation_sum }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        1008,
+        112
+      ],
+      "id": "5529d8dd-c859-42c5-82d5-5487f77b0dc9",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        272
+      ],
+      "id": "35acc5c7-e324-453a-9993-b0c10e872781",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DjXD79fBxBjlrrm8",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Below is the data for the crowd emotion and weather today. Use this to create a musical newsletter. The letter should have a short intro about the weather and emotion mood and atleast 10 songs that you recommend based on the overall setting.\nEmotion: {{ $json.output[0] }}\nWeather: {{ $json.output[1] }}\n\nYour output should be in plain text with proper spacing. Only write the body, no subject",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        -32
+      ],
+      "id": "11d9209d-a7d9-4aeb-bedc-fb3974640d68",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        144
+      ],
+      "id": "8fc2973e-82c9-4fe3-8e5e-279fff146433",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DjXD79fBxBjlrrm8",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1360,
+        -32
+      ],
+      "id": "84ffcfdb-003f-4e63-8baf-a1672d1ba4e7",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "output"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        -32
+      ],
+      "id": "7ea4a819-0e73-4539-9756-62da45b1781e",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "fromEmail": "nitsbaidya@gmail.com",
+        "toEmail": "nitsbaidya@gmail.com",
+        "subject": "Today's Musical Playlist | Curated Just For You",
+        "html": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        2112,
+        -32
+      ],
+      "id": "ed50d431-3581-4644-8812-cbec1f5e437e",
+      "name": "Send email",
+      "webhookId": "7b229b99-9c8a-42b7-995a-416a4e89eb4f",
+      "credentials": {
+        "smtp": {
+          "id": "w9u1qbyx3QJ10ZNe",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ed49d6a7-9495-4256-8981-3e7af5872e86",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cacaf5696a178f7b1c8c13aaebab10c8d878888816099d98bea2e2c0fb00c620"
+  },
+  "id": "svYxDYGtJxQxUXoK",
+  "tags": []
+}

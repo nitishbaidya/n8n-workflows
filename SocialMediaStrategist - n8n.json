@@ -1,0 +1,176 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code node – fetch & parse the top-10 trends from trends24.in/india\n * Works in the stock sandbox (uses this.helpers.request only).\n */\nasync function downloadHtml() {\n  return await this.helpers.request({\n    method: 'GET',\n    url: 'https://trends24.in/india/',\n    headers: {\n      // Look like a normal browser so Cloudflare is less likely to block us\n      'user-agent':\n        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +\n        'AppleWebKit/537.36 (KHTML, like Gecko) ' +\n        'Chrome/122.0 Safari/537.36',\n      accept: 'text/html',\n    },\n    json: false,     // ← get raw string\n    gzip: true,      // ← helper auto-unzips if server sends gzip\n  });\n}\n\nfunction extractTopTrends(html, max = 10) {\n  // Basic sanity: did we get an HTML page at all?\n  if (!/<html[^>]*>/i.test(html)) {\n    throw new Error('Response does not look like HTML (was it blocked?)');\n  }\n\n  /* -------------------------------------------------------------\n   * 1. Locate the OL that contains the latest-hour trends\n   *    We try three increasingly generic patterns:\n   *    A) first <div class=\"trend-card\"> … <ol> … </ol>\n   *    B) first <section class=\"trend-card\"> … <ol> … </ol>\n   *    C) first <ol> … </ol> anywhere on the page\n   * ----------------------------------------------------------- */\n  const patterns = [\n    /<div[^>]*class=\"[^\"]*trend-card[^\"]*\"[^>]*>[\\s\\S]*?<ol[^>]*>([\\s\\S]*?)<\\/ol>/i,\n    /<section[^>]*class=\"[^\"]*trend-card[^\"]*\"[^>]*>[\\s\\S]*?<ol[^>]*>([\\s\\S]*?)<\\/ol>/i,\n    /<ol[^>]*>([\\s\\S]*?)<\\/ol>/i,\n  ];\n\n  let listHtml = null;\n  for (const re of patterns) {\n    const m = html.match(re);\n    if (m) { listHtml = m[1]; break; }\n  }\n  if (!listHtml) throw new Error('Could not find any <ol> list of trends');\n\n  /* -------------------------------------------------------------\n   * 2. Pull the first `max` <li> entries, strip tags → plain text\n   * ----------------------------------------------------------- */\n  const liRe   = /<li[^>]*>([\\s\\S]*?)<\\/li>/gi;\n  const trends = [];\n  let m;\n  while ((m = liRe.exec(listHtml)) && trends.length < max) {\n    const text = m[1]\n      .replace(/<[^>]+>/g, '')   // remove inner tags\n      .replace(/\\s+/g, ' ')      // collapse whitespace\n      .trim();\n    if (text) trends.push(text);\n  }\n  if (!trends.length) throw new Error('No <li> items extracted');\n  return trends;\n}\n\n/* ------------------------------  MAIN  ------------------------------ */\ntry {\n  const html      = await downloadHtml();\n  const topTrends = extractTopTrends(html, 10);\n\n  return [{ json: { topTrends } }];\n} catch (err) {\n  return [{\n    json: {\n      error: err.message,\n      // Uncomment the next line temporarily to see the first 1 500 chars\n      // snippet: (err.html || '').substring(0, 1500)\n    }\n  }];\n}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        -32
+      ],
+      "id": "dec1785b-3d1b-42b1-9e3b-c791b15c8c0f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a social media strategist. For each of the following trending topics, provide a creative and engaging social media post plan. Include the type of content (e.g., image, video, text), a suggested caption or message, and an idea of the best time to post. {{ $json.topTrends }} \n\nDo not give any unecessary notices or warnings. Answer like a very energetic and hip gen-z employee",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        64,
+        -32
+      ],
+      "id": "bd6530c3-d6e2-42f0-8e3a-fd6b1d63c924",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        0,
+        160
+      ],
+      "id": "409b973a-c810-4996-b94a-94f6b24fbddf",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "DjXD79fBxBjlrrm8",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -352,
+        -32
+      ],
+      "id": "e061a9e7-848e-4a45-9aea-22d42fc4d9c3",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        496,
+        -96
+      ],
+      "id": "3a82f7a2-1e35-46cc-a71f-d3daffd4d933",
+      "name": "Send a message",
+      "webhookId": "3ad0c2c8-715c-4306-9bda-c1d2556482cc"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        496,
+        64
+      ],
+      "id": "548fbe03-7c50-43d7-ad40-057d6d3712fa",
+      "name": "Send a message1",
+      "webhookId": "58989a15-8165-4da1-8e2f-fa3c0f70e062"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        496,
+        224
+      ],
+      "id": "e3b1e0fb-93f7-48df-a08f-fe36d25476db",
+      "name": "Send email",
+      "webhookId": "70217ead-918a-4bc9-adf1-40a50a4629d1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3089477f-e7de-4e9f-a3f1-69ce489a6b32",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cacaf5696a178f7b1c8c13aaebab10c8d878888816099d98bea2e2c0fb00c620"
+  },
+  "id": "jHYW1Jk8UvFpnWKs",
+  "tags": []
+}
